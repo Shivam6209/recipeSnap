@@ -84,11 +84,16 @@ async def analyze_ingredients(file: UploadFile = File(...)):
         image_data = await file.read()
         
         # Process image to identify ingredients
-        ingredients = await image_processor.identify_ingredients(image_data)
+        if image_processor is not None:
+            ingredients = await image_processor.identify_ingredients(image_data)
+        else:
+            # Fallback to mock ingredients
+            logger.info("Using mock ingredient detection (AI models not loaded)")
+            ingredients = ["tomato", "onion", "garlic", "olive oil", "salt", "pepper"]
         
         return IngredientResponse(
             ingredients=ingredients,
-            message="Ingredients identified successfully"
+            message="Ingredients identified successfully" + (" (mock response)" if image_processor is None else "")
         )
     
     except Exception as e:
@@ -105,12 +110,36 @@ async def generate_recipes(ingredients: List[str]):
     
     try:
         # Generate recipes using AI
-        recipes = await recipe_generator.generate_recipes(ingredients)
+        if recipe_generator is not None:
+            recipes = await recipe_generator.generate_recipes(ingredients)
+        else:
+            # Fallback to mock recipes
+            logger.info("Using mock recipe generation (AI models not loaded)")
+            from models.schemas import Recipe
+            recipes = [
+                Recipe(
+                    name=f"Delicious {ingredients[0].title()} Dish",
+                    description=f"A wonderful dish featuring {', '.join(ingredients[:3])}",
+                    ingredients=ingredients + ["salt", "pepper", "oil"],
+                    instructions=[
+                        "Prepare all ingredients",
+                        f"Cook {ingredients[0]} until tender",
+                        "Add remaining ingredients",
+                        "Season to taste",
+                        "Serve hot"
+                    ],
+                    prep_time="15 minutes",
+                    cook_time="20 minutes",
+                    servings=4,
+                    difficulty="Easy",
+                    cuisine_type="Home Cooking"
+                )
+            ]
         
         return RecipeResponse(
             recipes=recipes,
             ingredients_used=ingredients,
-            message="Recipes generated successfully"
+            message="Recipes generated successfully" + (" (mock response)" if recipe_generator is None else "")
         )
     
     except Exception as e:
@@ -130,7 +159,12 @@ async def full_analysis(file: UploadFile = File(...)):
         image_data = await file.read()
         
         # Step 1: Identify ingredients
-        ingredients = await image_processor.identify_ingredients(image_data)
+        if image_processor is not None:
+            ingredients = await image_processor.identify_ingredients(image_data)
+        else:
+            # Fallback to mock ingredients when AI models are not available
+            logger.info("Using mock ingredient detection (AI models not loaded)")
+            ingredients = ["tomato", "onion", "garlic", "olive oil", "salt", "pepper"]
         
         if not ingredients:
             return {
@@ -140,12 +174,54 @@ async def full_analysis(file: UploadFile = File(...)):
             }
         
         # Step 2: Generate recipes
-        recipes = await recipe_generator.generate_recipes(ingredients)
+        if recipe_generator is not None:
+            recipes = await recipe_generator.generate_recipes(ingredients)
+        else:
+            # Fallback to mock recipes when AI models are not available
+            logger.info("Using mock recipe generation (AI models not loaded)")
+            from models.schemas import Recipe
+            recipes = [
+                Recipe(
+                    name="Quick Tomato Pasta",
+                    description="A simple and delicious pasta dish with fresh tomatoes",
+                    ingredients=ingredients + ["pasta", "parmesan cheese"],
+                    instructions=[
+                        "Boil water and cook pasta according to package directions",
+                        "Heat olive oil in a large pan",
+                        "Add minced garlic and cook for 1 minute",
+                        "Add diced tomatoes and cook for 5 minutes",
+                        "Season with salt and pepper",
+                        "Toss with cooked pasta and serve with parmesan"
+                    ],
+                    prep_time="10 minutes",
+                    cook_time="15 minutes",
+                    servings=4,
+                    difficulty="Easy",
+                    cuisine_type="Italian"
+                ),
+                Recipe(
+                    name="Simple Salad",
+                    description="Fresh and healthy salad with your ingredients",
+                    ingredients=ingredients + ["lettuce", "lemon juice"],
+                    instructions=[
+                        "Wash and chop all vegetables",
+                        "Combine in a large bowl",
+                        "Drizzle with olive oil and lemon juice",
+                        "Season with salt and pepper",
+                        "Toss well and serve immediately"
+                    ],
+                    prep_time="15 minutes",
+                    cook_time="0 minutes",
+                    servings=2,
+                    difficulty="Easy",
+                    cuisine_type="Mediterranean"
+                )
+            ]
         
         return {
             "ingredients": ingredients,
-            "recipes": recipes,
-            "message": "Analysis completed successfully"
+            "recipes": [recipe.dict() for recipe in recipes],
+            "message": "Analysis completed successfully" + (" (using mock AI responses)" if image_processor is None else "")
         }
     
     except Exception as e:
